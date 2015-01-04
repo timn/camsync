@@ -1,0 +1,222 @@
+
+/***************************************************************************
+ *  camsync.cpp - Camera Sync via DLNA for EOS 70D
+ *
+ *  Created: Thu Jan 01 17:13:43 2015
+ *  Copyright  2015  Tim Niemueller [www.niemueller.de]
+ ****************************************************************************/
+
+/*  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version. A runtime exception applies to
+ *  this software (see LICENSE.GPL file mentioned below for details).
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Library General Public License for more details.
+ *
+ *  Read the full text in the LICENSE.GPL file in the root directory.
+ */
+
+#include "jobqueue.h"
+#include "browse.h"
+#include "download.h"
+
+#include <libgupnp/gupnp-control-point.h>
+#include <libgupnp-av/gupnp-av.h>
+#include <string.h>
+#include <stdlib.h>
+#include <locale.h>
+#include <gmodule.h>
+#include <glib/gi18n.h>
+#include <glib-unix.h>
+
+#define MEDIA_SERVER     "urn:schemas-upnp-org:device:MediaServer:1"
+
+static struct {
+  int                  upnp_port;
+  char               **interfaces;
+  GMainLoop           *main_loop;
+  GUPnPContextManager *context_manager;
+  guint                source_download;
+  GUPnPServiceProxy   *content_dir;
+} G_ =
+  {
+    .upnp_port = 0,
+    .interfaces = NULL,
+    .main_loop = NULL,
+    .context_manager = NULL,
+    .content_dir = NULL
+  };
+
+static GOptionEntry entries[] =
+{
+  { "port", 'p', 0, G_OPTION_ARG_INT, &G_.upnp_port,
+    N_("Network PORT to use for UPnP"), "PORT" },
+  { "interface", 'i', 0, G_OPTION_ARG_STRING_ARRAY, &G_.interfaces,
+    N_("Network interfaces to use for UPnP communication"), "INTERFACE" },
+  { NULL }
+};
+
+
+static void
+dms_proxy_available_cb(GUPnPControlPoint *cp,
+		       GUPnPDeviceProxy  *proxy)
+{
+  GUPnPDeviceInfo *dev_info = GUPNP_DEVICE_INFO(proxy);
+
+  char *name = g_strdup(gupnp_device_info_get_friendly_name(dev_info));
+  g_strstrip(name);
+
+  printf("Server '%s' available(mfct %s, model %s, UDN %s)\n",
+	 name,
+	 gupnp_device_info_get_manufacturer(dev_info),
+	 gupnp_device_info_get_model_name(dev_info),
+	 gupnp_device_info_get_udn(dev_info));
+
+  if (g_strcmp0(name, "Canon EOS 70D") == 0) {
+    printf("Found Camera, browsing files\n");
+    // get files
+    G_.content_dir = get_content_dir(proxy);
+    browse(G_.content_dir, "0", 0, MAX_BROWSE);
+  }
+
+  g_free(name);
+}
+
+static void
+dms_proxy_unavailable_cb(GUPnPControlPoint *cp,
+			 GUPnPDeviceProxy  *proxy)
+{
+  //printf("Server UNavailable\n");
+  GUPnPDeviceInfo *dev_info = GUPNP_DEVICE_INFO(proxy);
+
+  char *name = g_strdup(gupnp_device_info_get_friendly_name(dev_info));
+  g_strstrip(name);
+
+  if (g_strcmp0(name, "Canon EOS 70D") == 0) {
+    printf("Camera has left the network\n");
+    g_object_unref(G_.content_dir);
+    G_.content_dir = NULL;
+    jq_flush_undone();
+  }
+  g_free(name);
+}
+
+static void
+on_context_available(GUPnPContextManager *context_manager,
+		     GUPnPContext        *context,
+		     gpointer             user_data)
+{
+  GUPnPControlPoint *dms_cp;
+
+  dms_cp = gupnp_control_point_new(context, MEDIA_SERVER);
+
+  g_signal_connect(dms_cp,
+		   "device-proxy-available",
+		   G_CALLBACK(dms_proxy_available_cb),
+		   NULL);
+  g_signal_connect(dms_cp,
+		   "device-proxy-unavailable",
+		   G_CALLBACK(dms_proxy_unavailable_cb),
+		   NULL);
+
+  gssdp_resource_browser_set_active(GSSDP_RESOURCE_BROWSER(dms_cp), TRUE);
+
+  /* Let context manager take care of the control point life cycle */
+  gupnp_context_manager_manage_control_point(context_manager, dms_cp);
+
+  /* We don't need to keep our own references to the control points */
+  g_object_unref(dms_cp);
+}
+
+
+static gboolean
+init_upnp(int port)
+{
+  GUPnPWhiteList *white_list;
+
+#if ! GLIB_CHECK_VERSION(2, 35, 0)
+  g_type_init();
+#endif
+
+  G_.context_manager = gupnp_context_manager_create(port);
+  g_assert(G_.context_manager != NULL);
+
+  if (G_.interfaces != NULL) {
+    white_list = gupnp_context_manager_get_white_list(G_.context_manager);
+    gupnp_white_list_add_entryv(white_list, G_.interfaces);
+    gupnp_white_list_set_enabled(white_list, TRUE);
+  }
+
+  g_signal_connect(G_.context_manager,
+		   "context-available",
+		   G_CALLBACK(on_context_available),
+		   NULL);
+
+  return TRUE;
+}
+
+static void
+deinit_upnp(void)
+{
+  //printf("Tearing down UPnP\n");
+  g_object_unref(G_.context_manager);
+}
+
+static gboolean
+main_loop_quit(gpointer user_data)
+{
+  GMainLoop *main_loop =(GMainLoop *)user_data;
+  g_main_loop_quit(main_loop);
+  return FALSE;
+}
+
+gint
+main(gint   argc, gchar *argv[])
+{
+  GError *error = NULL;
+  GOptionContext *context = NULL;
+
+  setlocale(LC_ALL, "");
+  bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR);
+  bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
+  textdomain(GETTEXT_PACKAGE);
+
+  context = g_option_context_new(_("- Camera Sync via DLNA(EOS 70D)"));
+  g_option_context_add_main_entries(context, entries, GETTEXT_PACKAGE);
+
+  if (!g_option_context_parse(context, &argc, &argv, &error)) {
+    g_print(_("Could not parse options: %s\n"), error->message);
+
+    return -4;
+  }
+
+  if (! download_init()) {
+    return -2;
+  }
+
+  if (!init_upnp(G_.upnp_port)) {
+    return -3;
+  }
+
+  if (! jq_init(".state.db")) {
+    g_printerr("Failed to initialize job queue\n");
+    return -4;
+  }
+
+  // Run GLib main loop
+  G_.main_loop = g_main_loop_new(NULL, FALSE);
+  g_unix_signal_add(SIGINT, main_loop_quit, G_.main_loop);
+  g_unix_signal_add(SIGTERM, main_loop_quit, G_.main_loop);
+  g_main_loop_run(G_.main_loop);
+  g_main_loop_unref(G_.main_loop);
+
+  deinit_upnp();
+  download_finalize();
+  jq_finalize();
+
+  return 0;
+}

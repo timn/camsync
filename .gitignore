@@ -1,0 +1,24 @@
+# Generic globs
+/core*
+/bin/core*
+*~
+
+# Generated protobuf files
+*.pb.h
+*.pb.cpp
+
+# Specific paths, _ variants for cross compilation environments
+/bin/
+/build/
+/lib/
+/log/
+/warnings.txt
+
+# Eclipse project files, some are using it...
+.cproject
+.project
+.settings
+
+# Vim files
+.*.swp
+.*.swo
