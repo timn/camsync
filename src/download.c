@@ -22,6 +22,7 @@
 
 #include "download.h"
 #include "jobqueue.h"
+#include "config.h"
 
 #include <glib.h>
 #include <glib/gi18n.h>
@@ -177,7 +178,7 @@ download(gpointer user_data)
   JobQueueEntry *jqe = jq_get_next();
   if (jqe) {
     printf("Fetching %s (%s)\n", jqe->name, jqe->url);
-    get_url(jqe->id, jqe->url, ".", jqe->name);
+    get_url(jqe->id, jqe->url, C_.output_dir, jqe->name);
     jqe_destroy(jqe);
   }
 

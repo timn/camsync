@@ -20,6 +20,7 @@
  *  Read the full text in the LICENSE.GPL file in the root directory.
  */
 
+#include "config.h"
 #include "jobqueue.h"
 #include "browse.h"
 #include "download.h"
@@ -36,30 +37,16 @@
 #define MEDIA_SERVER     "urn:schemas-upnp-org:device:MediaServer:1"
 
 static struct {
-  int                  upnp_port;
-  char               **interfaces;
   GMainLoop           *main_loop;
   GUPnPContextManager *context_manager;
   guint                source_download;
   GUPnPServiceProxy   *content_dir;
 } G_ =
   {
-    .upnp_port = 0,
-    .interfaces = NULL,
     .main_loop = NULL,
     .context_manager = NULL,
     .content_dir = NULL
   };
-
-static GOptionEntry entries[] =
-{
-  { "port", 'p', 0, G_OPTION_ARG_INT, &G_.upnp_port,
-    N_("Network PORT to use for UPnP"), "PORT" },
-  { "interface", 'i', 0, G_OPTION_ARG_STRING_ARRAY, &G_.interfaces,
-    N_("Network interfaces to use for UPnP communication"), "INTERFACE" },
-  { NULL }
-};
-
 
 static void
 dms_proxy_available_cb(GUPnPControlPoint *cp,
@@ -76,7 +63,7 @@ dms_proxy_available_cb(GUPnPControlPoint *cp,
 	 gupnp_device_info_get_model_name(dev_info),
 	 gupnp_device_info_get_udn(dev_info));
 
-  if (g_strcmp0(name, "Canon EOS 70D") == 0) {
+  if (g_strcmp0(name, C_.camera_name) == 0) {
     printf("Found Camera, browsing files\n");
     // get files
     G_.content_dir = get_content_dir(proxy);
@@ -96,7 +83,7 @@ dms_proxy_unavailable_cb(GUPnPControlPoint *cp,
   char *name = g_strdup(gupnp_device_info_get_friendly_name(dev_info));
   g_strstrip(name);
 
-  if (g_strcmp0(name, "Canon EOS 70D") == 0) {
+  if (g_strcmp0(name, C_.camera_name) == 0) {
     printf("Camera has left the network\n");
     g_object_unref(G_.content_dir);
     G_.content_dir = NULL;
@@ -145,9 +132,9 @@ init_upnp(int port)
   G_.context_manager = gupnp_context_manager_create(port);
   g_assert(G_.context_manager != NULL);
 
-  if (G_.interfaces != NULL) {
+  if (C_.interfaces != NULL) {
     white_list = gupnp_context_manager_get_white_list(G_.context_manager);
-    gupnp_white_list_add_entryv(white_list, G_.interfaces);
+    gupnp_white_list_add_entryv(white_list, C_.interfaces);
     gupnp_white_list_set_enabled(white_list, TRUE);
   }
 
@@ -177,35 +164,39 @@ main_loop_quit(gpointer user_data)
 gint
 main(gint   argc, gchar *argv[])
 {
-  GError *error = NULL;
-  GOptionContext *context = NULL;
-
   setlocale(LC_ALL, "");
   bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR);
   bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
   textdomain(GETTEXT_PACKAGE);
 
-  context = g_option_context_new(_("- Camera Sync via DLNA(EOS 70D)"));
-  g_option_context_add_main_entries(context, entries, GETTEXT_PACKAGE);
-
-  if (!g_option_context_parse(context, &argc, &argv, &error)) {
-    g_print(_("Could not parse options: %s\n"), error->message);
-
-    return -4;
+  if (! config_init(argc, argv)) {
+    return -1;
   }
+
+  g_print("Camera:           %s\n"
+	  "Output directory: %s\n"
+	  "UPnP port:        %i\n"
+	  "Config file:      %s\n",
+	  C_.camera_name, C_.output_dir, C_.upnp_port,
+	  C_.config_file ? C_.config_file : "none");
 
   if (! download_init()) {
     return -2;
   }
 
-  if (!init_upnp(G_.upnp_port)) {
+  if (!init_upnp(C_.upnp_port)) {
     return -3;
   }
 
-  if (! jq_init(".state.db")) {
+  char *config_db =
+    g_strdup_printf("%s/.state.db", C_.output_dir);
+
+  if (! jq_init(config_db)) {
     g_printerr("Failed to initialize job queue\n");
+    g_free(config_db);
     return -4;
   }
+  g_free(config_db);
 
   // Run GLib main loop
   G_.main_loop = g_main_loop_new(NULL, FALSE);

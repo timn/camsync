@@ -23,5 +23,5 @@ pkg_check_modules(SQLITE sqlite3)
 include_directories(${GLIB_INCLUDE_DIRS} ${GUPNP_INCLUDE_DIRS} ${LIBSOUP_INCLUDE_DIRS} ${SQLITE_INCLUDE_DIRS})
 link_libraries(${GLIB_LIBRARIES} ${GUPNP_LIBRARIES} ${LIBSOUP_LIBRARIES} ${SQLITE_LIBRARIES})
 
-add_executable(camsync src/camsync.c src/browse.c src/download.c src/jobqueue.c)
+add_executable(camsync src/camsync.c src/browse.c src/download.c src/jobqueue.c src/config.c)
 
