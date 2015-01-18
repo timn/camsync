@@ -28,15 +28,33 @@
 
 CamSyncConfig C_ =
   {
-    .upnp_port = 0,
-    .interfaces = NULL,
-    .output_dir = NULL,
-    .camera_name = NULL,
-    .config_file = NULL
+    .upnp_port      = 0,
+    .interfaces     = NULL,
+    .output_dir     = NULL,
+    .camera_name    = NULL,
+    .config_file    = NULL,
+    .daemonize      = false,
+    .daemon_kill    = false,
+    .daemon_pidfile = NULL
   };
 
 
-static GOptionEntry entries[] =
+static gboolean
+config_daemon_cb(const gchar *option_name, const gchar *value,
+			 gpointer data, GError **error)
+{
+  if (strcmp(option_name, "--daemon") == 0 || strcmp(option_name, "-d") == 0) {
+    C_.daemonize = true;
+  } else if (strcmp(option_name, "--daemon-kill") == 0 || strcmp(option_name, "-k") == 0) {
+    C_.daemon_kill = true;
+  }
+  if (value) {
+    C_.daemon_pidfile = g_strdup(value);
+  }
+  return TRUE;
+}
+
+static GOptionEntry config_entries[] =
 {
   { "config", 'C', 0, G_OPTION_ARG_STRING, &C_.config_file,
     N_("Configuration file"), "FILE" },
@@ -48,8 +66,13 @@ static GOptionEntry entries[] =
     N_("Name of camera to query (default Canon EOS 70D)"), "CAMERA" },
   { "outdir", 'o', 0, G_OPTION_ARG_STRING, &C_.output_dir,
     N_("Directory where to store downloaded images (must already exist)"), "DIR" },
+  { "daemon", 'd', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_CALLBACK,
+    config_daemon_cb, N_("Run in background as a daemon"), "[PIDFILE]" },
+  { "daemon-kill", 'k', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_CALLBACK,
+    config_daemon_cb, N_("Kill camsync daemon running in the background"), "[PIDFILE]" },
   { NULL }
 };
+
 
 bool
 config_init(int argc, char **argv)
@@ -58,7 +81,7 @@ config_init(int argc, char **argv)
 
   GOptionContext *context =
     g_option_context_new(_("- Download images from a camera via DLNA"));
-  g_option_context_add_main_entries(context, entries, GETTEXT_PACKAGE);
+  g_option_context_add_main_entries(context, config_entries, GETTEXT_PACKAGE);
 
   if (!g_option_context_parse(context, &argc, &argv, &error)) {
     g_print(_("Could not parse options: %s\n"), error->message);
@@ -86,12 +109,18 @@ config_init(int argc, char **argv)
       if (C_.camera_name == NULL) {
 	C_.camera_name = g_key_file_get_string(kf, "general", "camera", NULL);
       }
+      if (! C_.daemonize) {
+	C_.daemonize = g_key_file_get_boolean(kf, "general", "daemonize", NULL);
+	C_.daemon_pidfile = g_key_file_get_string(kf, "general", "pidfile", NULL);
+      }
+      // daemon_kill cannot be set in config file
+
     } else {
       g_print(_("Could not read config file: %s\n"), error->message);
     }
   }
 
-  if (C_.output_dir == NULL)  C_.output_dir = g_strdup(".");
+  if (C_.output_dir == NULL)   C_.output_dir = g_get_current_dir();
   if (C_.camera_name == NULL)  C_.camera_name = g_strdup("Canon EOS 70D");
 
   g_option_context_free(context);

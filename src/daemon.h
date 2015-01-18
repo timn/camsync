@@ -1,8 +1,8 @@
 
 /***************************************************************************
- *  config.h - Camera Sync - Configuration
+ *  daemon.h - Camera Sync - daemon support
  *
- *  Created: Sun Jan 04 13:14:11 2015
+ *  Created: Fri Jan 09 23:58:03 2015
  *  Copyright  2015  Tim Niemueller [www.niemueller.de]
  ****************************************************************************/
 
@@ -20,26 +20,16 @@
  *  Read the full text in the LICENSE.GPL file in the root directory.
  */
 
-#ifndef __CONFIG_H_
-#define __CONFIG_H_
+#ifndef __DAEMON_H_
+#define __DAEMON_H_
 
-#include <stdbool.h>
+typedef enum {
+  FAIL,
+  PARENT,
+  DAEMON
+} daemon_proc_type_t;
 
-typedef struct {
-  int                  upnp_port;
-  char               **interfaces;
-  char                *output_dir;
-  char                *camera_name;
-  char                *config_file;
-  bool                 daemonize;
-  bool                 daemon_kill;
-  char                *daemon_pidfile;
-} CamSyncConfig;
-
-extern CamSyncConfig C_;
-
-
-bool config_init(int argc, char **argv);
-void config_finalize();
+daemon_proc_type_t daemonize(char *argv0, const char *pidfile);
+void               daemon_kill(char *argv0, const char *pidfile);
 
 #endif

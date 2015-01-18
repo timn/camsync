@@ -24,6 +24,7 @@
 #include "jobqueue.h"
 #include "browse.h"
 #include "download.h"
+#include "daemon.h"
 
 #include <libgupnp/gupnp-control-point.h>
 #include <libgupnp-av/gupnp-av.h>
@@ -171,6 +172,25 @@ main(gint   argc, gchar *argv[])
 
   if (! config_init(argc, argv)) {
     return -1;
+  }
+
+  if (C_.daemon_kill) {
+    daemon_kill(argv[0], C_.daemon_pidfile);
+    return 0;
+  }
+  if (C_.daemonize) {
+    printf("daemonize\n");
+    switch (daemonize(argv[0], C_.daemon_pidfile)) {
+    case FAIL:
+      printf("FAIL\n");
+      return -5;
+    case PARENT:
+      printf("PARENT\n");
+      return 0;
+    case DAEMON:
+      printf("DAEMON\n");
+      break;
+    }
   }
 
   g_print("Camera:           %s\n"
