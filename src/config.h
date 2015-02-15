@@ -34,6 +34,7 @@ typedef struct {
   bool                 daemonize;
   bool                 daemon_kill;
   char                *daemon_pidfile;
+  unsigned int         conc_downloads;
 } CamSyncConfig;
 
 extern CamSyncConfig C_;

@@ -34,12 +34,13 @@
 static struct {
   SoupSession         *soup_session;
   guint                source_download;
+  guint                active_downloads;
 } G_ =
   {
     .soup_session = NULL,
     .source_download = 0,
+    .active_downloads = 0,
   };
-
 
 typedef struct
 {
@@ -67,6 +68,9 @@ download_data_new(const char *id,
   return data;
 }
 
+static bool download_next();
+
+
 static void
 download_data_free(DownloadData *data)
 {
@@ -81,12 +85,22 @@ download_data_free(DownloadData *data)
 bool
 download_init()
 {
-  G_.soup_session = g_object_new(SOUP_TYPE_SESSION,
-				 SOUP_SESSION_ADD_FEATURE_BY_TYPE, SOUP_TYPE_CONTENT_DECODER,
-				 SOUP_SESSION_ADD_FEATURE_BY_TYPE, SOUP_TYPE_COOKIE_JAR,
-				 SOUP_SESSION_USER_AGENT, "camsync ",
-				 SOUP_SESSION_ACCEPT_LANGUAGE_AUTO, TRUE,
-			      NULL);
+  G_.soup_session =
+    soup_session_new_with_options(SOUP_SESSION_ADD_FEATURE_BY_TYPE, SOUP_TYPE_CONTENT_DECODER,
+				  SOUP_SESSION_ADD_FEATURE_BY_TYPE, SOUP_TYPE_COOKIE_JAR,
+				  SOUP_SESSION_MAX_CONNS, C_.conc_downloads,
+				  SOUP_SESSION_MAX_CONNS_PER_HOST, C_.conc_downloads,
+				  SOUP_SESSION_USER_AGENT, "camsync ",
+				  SOUP_SESSION_ACCEPT_LANGUAGE_AUTO, TRUE,
+				  NULL);
+
+  /*
+  SoupLogger *logger;
+  logger = soup_logger_new(SOUP_LOGGER_LOG_HEADERS, -1);
+  soup_session_add_feature(G_.soup_session, SOUP_SESSION_FEATURE(logger));
+  g_object_unref(logger);
+  */
+
   return (G_.soup_session != NULL);
 }
 
@@ -103,8 +117,10 @@ download_start()
 {
   if (G_.source_download != 0)  return;
 
-  printf("Starting download\n");
-  G_.source_download = g_idle_add(download, NULL);
+  if (G_.active_downloads < C_.conc_downloads) {
+    printf("Starting download\n");
+    G_.source_download = g_idle_add(download, NULL);
+  }
 }
 
 
@@ -118,6 +134,8 @@ get_url_finished (SoupSession *session, SoupMessage *msg, gpointer user_data)
   char *tmpfile_name, *file_name;
 
   printf("Download of %s completed\n", data->outfile_name);
+
+  G_.active_downloads -= 1;
 
   tmpfile_name = g_strdup_printf("%s/.%s.part", data->outfile_dir, data->outfile_name);
   file_name    = g_strdup_printf("%s/%s", data->outfile_dir, data->outfile_name);
@@ -151,6 +169,8 @@ get_url_finished (SoupSession *session, SoupMessage *msg, gpointer user_data)
 
   g_free(tmpfile_name);
   g_free(file_name);
+
+  download_next();
 }
 
 
@@ -160,6 +180,8 @@ get_url(const char *id, const char *url, const char *outfile_dir, const char *ou
   SoupMessage *msg;
   const char *header;
   FILE *output_file = NULL;
+
+  G_.active_downloads += 1;
 
   msg = soup_message_new("GET", url);
 
@@ -172,17 +194,26 @@ get_url(const char *id, const char *url, const char *outfile_dir, const char *ou
 }
 
 
+static bool
+download_next()
+{
+  if (G_.active_downloads < C_.conc_downloads) {
+    JobQueueEntry *jqe = jq_get_next();
+    if (jqe) {
+      printf("Fetching %s (%s)\n", jqe->name, jqe->url);
+      get_url(jqe->id, jqe->url, C_.output_dir, jqe->name);
+      jqe_destroy(jqe);
+    }
+    return true;
+  } else {
+    return false;
+  }
+}
+
 static gboolean
 download(gpointer user_data)
 {
-  JobQueueEntry *jqe = jq_get_next();
-  if (jqe) {
-    printf("Fetching %s (%s)\n", jqe->name, jqe->url);
-    get_url(jqe->id, jqe->url, C_.output_dir, jqe->name);
-    jqe_destroy(jqe);
-  }
-
-  if (jq_has_next()) {
+  if (download_next() && jq_has_next()) {
     printf("Continuing\n");
     return G_SOURCE_CONTINUE;
   } else {

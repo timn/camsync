@@ -35,7 +35,8 @@ CamSyncConfig C_ =
     .config_file    = NULL,
     .daemonize      = false,
     .daemon_kill    = false,
-    .daemon_pidfile = NULL
+    .daemon_pidfile = NULL,
+    .conc_downloads = 0
   };
 
 
@@ -70,6 +71,8 @@ static GOptionEntry config_entries[] =
     config_daemon_cb, N_("Run in background as a daemon"), "[PIDFILE]" },
   { "daemon-kill", 'k', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_CALLBACK,
     config_daemon_cb, N_("Kill camsync daemon running in the background"), "[PIDFILE]" },
+  { "conc-downloads", 'D', 0, G_OPTION_ARG_INT, &C_.conc_downloads,
+    N_("Maximum number of concurrent downloads"), "N" },
   { NULL }
 };
 
@@ -114,6 +117,10 @@ config_init(int argc, char **argv)
 	C_.daemon_pidfile = g_key_file_get_string(kf, "general", "pidfile", NULL);
       }
       // daemon_kill cannot be set in config file
+      if (C_.conc_downloads == 0) {
+	C_.conc_downloads = g_key_file_get_integer(kf, "general",
+						   "concurrent-downloads", NULL);
+      }
 
     } else {
       g_print(_("Could not read config file: %s\n"), error->message);
