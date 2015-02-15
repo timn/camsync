@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.4.5)
 include(FindPkgConfig)
 include(FindGettext)
-include(GNUInstallDirs)
+#include(GNUInstallDirs)
 #include(CheckIncludeFileCXX)
 
 if(POLICY CMP0005)
