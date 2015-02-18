@@ -118,7 +118,6 @@ download_start()
   if (G_.source_download != 0)  return;
 
   if (G_.active_downloads < C_.conc_downloads) {
-    printf("Starting download\n");
     G_.source_download = g_idle_add(download, NULL);
   }
 }
@@ -154,7 +153,6 @@ get_url_finished (SoupSession *session, SoupMessage *msg, gpointer user_data)
 
       fclose(output_file);
 
-      printf("Renaming %s -> %s\n", tmpfile_name, file_name);
       int rename_status = rename(tmpfile_name, file_name);
       if (rename_status != 0) {
 	g_printerr("Failed to move temporary file: %s\n", strerror(errno));
@@ -192,7 +190,6 @@ get_url(const char *id, const char *url, const char *outfile_dir, const char *ou
   data = download_data_new(id, outfile_dir, outfile_name, url);
 
   g_object_ref(msg);
-  printf("Queueing SOUP message\n");
   soup_session_queue_message(G_.soup_session, msg, get_url_finished, data);
 }
 
@@ -217,10 +214,8 @@ static gboolean
 download(gpointer user_data)
 {
   if (download_next() && jq_has_next()) {
-    printf("Continuing\n");
     return G_SOURCE_CONTINUE;
   } else {
-    printf("Stopping download\n");
     G_.source_download = 0;
     return G_SOURCE_REMOVE;
   }

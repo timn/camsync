@@ -182,10 +182,9 @@ browse_didl_object_available(GUPnPDIDLLiteParser *parser,
     }
   } else {
     if (! jq_has(id)) {
-      printf("Get metadata for new item %s\n", title);
       browse_metadata(browse_data->content_dir, id);
     } else {
-      printf("Already got item %s\n", title);
+      //printf("Already got item %s\n", title);
     }
   }
 }
@@ -292,9 +291,6 @@ browse_metadata_didl_item_available (GUPnPDIDLLiteParser *parser,
       const char *dlna_profile =
 	gupnp_protocol_info_get_dlna_profile(protinf);
       if (dlna_profile == NULL) {
-	printf("Resource %s (%s): %s\n", data->title, data->id,
-	       gupnp_didl_lite_resource_get_uri(res));
-
 	// jq_append would overwrite potentially existing entries,
 	// but this would also clear the completion flag and we would
 	// re-download files. Hence first try to refresh, and only then add.
