@@ -26,7 +26,7 @@
 #include <libgupnp/gupnp-control-point.h>
 #include <libgupnp-av/gupnp-av.h>
 
-#define MAX_BROWSE       64
+#define MAX_BROWSE       50
 
 GUPnPServiceProxy *
 get_content_dir(GUPnPDeviceProxy *proxy);

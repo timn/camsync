@@ -29,9 +29,11 @@
 
 static struct {
   guint                timeout_rebrowse;
+  guint                browse_active;
 } G_ =
   {
     .timeout_rebrowse = 0,
+    .browse_active = 0,
   };
 
 
@@ -119,6 +121,11 @@ rebrowse_abort()
 static gboolean
 rebrowse(gpointer user_data)
 {
+  if (G_.browse_active) {
+    printf("WARNING: browse active\n");
+    return G_SOURCE_CONTINUE;
+  }
+
   GUPnPServiceProxy *content_dir = (GUPnPServiceProxy *)user_data;
 
   if (content_dir) {
@@ -133,9 +140,13 @@ rebrowse(gpointer user_data)
 static void
 browse_completed(GUPnPServiceProxy *content_dir)
 {
-  g_object_ref(content_dir);
-  G_.timeout_rebrowse =
-    g_timeout_add_seconds(RECHECK_INTERVAL, rebrowse, content_dir);
+  if (G_.browse_active == 0) {
+    download_start();
+
+    g_object_ref(content_dir);
+    G_.timeout_rebrowse =
+      g_timeout_add_seconds(RECHECK_INTERVAL, rebrowse, content_dir);
+  }
 }
 
 
@@ -194,6 +205,8 @@ browse_cb(GUPnPServiceProxy       *content_dir,
   didl_xml = NULL;
   error = NULL;
 
+  G_.browse_active -= 1;
+
   gupnp_service_proxy_end_action
    (content_dir, action, &error,
      /* OUT args */
@@ -243,7 +256,6 @@ browse_cb(GUPnPServiceProxy       *content_dir,
       browse(data->content_dir, data->id, data->starting_index, batch_size);
     } else {
       // done browsing
-      //update_container_child_count(content_dir, data->id);
       browse_completed(data->content_dir);
     }
   } else if (error) {
@@ -287,8 +299,6 @@ browse_metadata_didl_item_available (GUPnPDIDLLiteParser *parser,
 	// but this would also clear the completion flag and we would
 	// re-download files. Hence first try to refresh, and only then add.
 	jq_refresh_or_append(data->id, data->title, gupnp_didl_lite_resource_get_uri(res));
-	// this will start downloading if not already done
-	download_start();
 	//get_url(data->id, gupnp_didl_lite_resource_get_uri(res), ".", data->title);
       }	
     }
@@ -345,6 +355,8 @@ browse_metadata_cb(GUPnPServiceProxy       *content_dir,
 	      data->id, error->message);
     g_error_free(error);
   }
+
+  download_start();
   
   browse_metadata_data_free(data);
   g_object_unref(content_dir);
@@ -359,6 +371,8 @@ browse(GUPnPServiceProxy *content_dir,
 {
   BrowseData *data;
   data = browse_data_new(content_dir, container_id, starting_index);
+
+  G_.browse_active += 1;
 
   gupnp_service_proxy_begin_action
    (content_dir, "Browse", browse_cb, data,
