@@ -163,8 +163,11 @@ get_url_finished (SoupSession *session, SoupMessage *msg, gpointer user_data)
       jq_mark_done(data->id);
     }
   } else {
-    // the file will be deferred for a few minutes to retry later
-    g_printerr("Failed to get %s: %s\n", data->url, msg->reason_phrase);
+    // Remove failed files, they were probably removed from the
+    // camera in the meantime. If it is a transient error we will
+    // re-discover the file on the next browse operation
+    g_printerr("Failed to get %s: %s (removing)\n", data->url, msg->reason_phrase);
+    jq_remove(data->id);
   }
 
   g_free(tmpfile_name);
