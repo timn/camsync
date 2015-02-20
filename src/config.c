@@ -129,6 +129,7 @@ config_init(int argc, char **argv)
 
   if (C_.output_dir == NULL)   C_.output_dir = g_get_current_dir();
   if (C_.camera_name == NULL)  C_.camera_name = g_strdup("Canon EOS 70D");
+  if (C_.conc_downloads == 0)  C_.conc_downloads = 1;
 
   g_option_context_free(context);
   return true;
