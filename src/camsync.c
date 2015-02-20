@@ -86,6 +86,7 @@ dms_proxy_unavailable_cb(GUPnPControlPoint *cp,
 
   if (g_strcmp0(name, C_.camera_name) == 0) {
     printf("Camera has left the network\n");
+    rebrowse_abort();
     g_object_unref(G_.content_dir);
     G_.content_dir = NULL;
     jq_flush_undone();
