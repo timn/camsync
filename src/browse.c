@@ -29,10 +29,12 @@
 
 static struct {
   guint                timeout_rebrowse;
+  GUPnPServiceProxy   *timeout_content_dir;
   guint                browse_active;
 } G_ =
   {
     .timeout_rebrowse = 0,
+    .timeout_content_dir = NULL,
     .browse_active = 0,
   };
 
@@ -115,6 +117,10 @@ rebrowse_abort()
     if (timeout_source) {
       g_source_destroy(timeout_source);
     }
+    if (G_.timeout_content_dir) {
+      g_object_unref(G_.timeout_content_dir);
+      G_.timeout_content_dir = NULL;
+    }
   }
 }
 
@@ -146,6 +152,7 @@ browse_completed(GUPnPServiceProxy *content_dir)
     g_object_ref(content_dir);
     G_.timeout_rebrowse =
       g_timeout_add_seconds(C_.rebrowse_interval, rebrowse, content_dir);
+    G_.timeout_content_dir = content_dir;
   }
 }
 
