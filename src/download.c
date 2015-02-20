@@ -168,6 +168,8 @@ get_url_finished (SoupSession *session, SoupMessage *msg, gpointer user_data)
     jq_remove(data->id);
   }
 
+  g_object_unref(msg);
+
   g_free(tmpfile_name);
   g_free(file_name);
 
