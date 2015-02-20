@@ -28,15 +28,16 @@
 
 CamSyncConfig C_ =
   {
-    .upnp_port      = 0,
-    .interfaces     = NULL,
-    .output_dir     = NULL,
-    .camera_name    = NULL,
-    .config_file    = NULL,
-    .daemonize      = false,
-    .daemon_kill    = false,
-    .daemon_pidfile = NULL,
-    .conc_downloads = 0
+    .upnp_port         = 0,
+    .interfaces        = NULL,
+    .output_dir        = NULL,
+    .camera_name       = NULL,
+    .config_file       = NULL,
+    .daemonize         = false,
+    .daemon_kill       = false,
+    .daemon_pidfile    = NULL,
+    .conc_downloads    = 0,
+    .rebrowse_interval = 300
   };
 
 
@@ -73,6 +74,8 @@ static GOptionEntry config_entries[] =
     config_daemon_cb, N_("Kill camsync daemon running in the background"), "[PIDFILE]" },
   { "conc-downloads", 'D', 0, G_OPTION_ARG_INT, &C_.conc_downloads,
     N_("Maximum number of concurrent downloads"), "N" },
+  { "rebrowse-interval", 'r', 0, G_OPTION_ARG_INT, &C_.rebrowse_interval,
+    N_("Time between checking for new images (if no download active)"), "SEC" },
   { NULL }
 };
 
@@ -120,6 +123,10 @@ config_init(int argc, char **argv)
       if (C_.conc_downloads == 0) {
 	C_.conc_downloads = g_key_file_get_integer(kf, "general",
 						   "concurrent-downloads", NULL);
+      }
+      if (C_.rebrowse_interval == 0) {
+	C_.rebrowse_interval =
+	  g_key_file_get_integer(kf, "general", "rebrowse-interval", NULL);
       }
 
     } else {

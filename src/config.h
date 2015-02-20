@@ -35,6 +35,7 @@ typedef struct {
   bool                 daemon_kill;
   char                *daemon_pidfile;
   unsigned int         conc_downloads;
+  unsigned int         rebrowse_interval;
 } CamSyncConfig;
 
 extern CamSyncConfig C_;

@@ -23,9 +23,9 @@
 #include "browse.h"
 #include "download.h"
 #include "jobqueue.h"
+#include "config.h"
 
 #define CONTENT_DIR      "urn:schemas-upnp-org:service:ContentDirectory"
-#define RECHECK_INTERVAL 180
 
 static struct {
   guint                timeout_rebrowse;
@@ -145,7 +145,7 @@ browse_completed(GUPnPServiceProxy *content_dir)
 
     g_object_ref(content_dir);
     G_.timeout_rebrowse =
-      g_timeout_add_seconds(RECHECK_INTERVAL, rebrowse, content_dir);
+      g_timeout_add_seconds(C_.rebrowse_interval, rebrowse, content_dir);
   }
 }
 
