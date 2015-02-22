@@ -25,6 +25,7 @@
 #include "browse.h"
 #include "download.h"
 #include "daemon.h"
+#include "logging.h"
 
 #include <libgupnp/gupnp-control-point.h>
 #include <libgupnp-av/gupnp-av.h>
@@ -58,14 +59,14 @@ dms_proxy_available_cb(GUPnPControlPoint *cp,
   char *name = g_strdup(gupnp_device_info_get_friendly_name(dev_info));
   g_strstrip(name);
 
-  printf("Server '%s' available(mfct %s, model %s, UDN %s)\n",
-	 name,
-	 gupnp_device_info_get_manufacturer(dev_info),
-	 gupnp_device_info_get_model_name(dev_info),
-	 gupnp_device_info_get_udn(dev_info));
+  log_debug("main", "Server '%s' available(mfct %s, model %s, UDN %s)",
+	    name,
+	    gupnp_device_info_get_manufacturer(dev_info),
+	    gupnp_device_info_get_model_name(dev_info),
+	    gupnp_device_info_get_udn(dev_info));
 
   if (g_strcmp0(name, C_.camera_name) == 0) {
-    printf("Found Camera, browsing files\n");
+    log_info("GUPnP", "Found Camera '%s', browsing files", name);
     // get files
     G_.content_dir = get_content_dir(proxy);
     browse(G_.content_dir, "0", 0, MAX_BROWSE);
@@ -85,7 +86,7 @@ dms_proxy_unavailable_cb(GUPnPControlPoint *cp,
   g_strstrip(name);
 
   if (g_strcmp0(name, C_.camera_name) == 0) {
-    printf("Camera has left the network\n");
+    log_info("GUPnP", "Camera '%s' has left the network", name);
     rebrowse_abort();
     g_object_unref(G_.content_dir);
     G_.content_dir = NULL;
@@ -180,26 +181,25 @@ main(gint   argc, gchar *argv[])
     return 0;
   }
   if (C_.daemonize) {
-    printf("daemonize\n");
+    //printf("daemonize\n");
     switch (daemonize(argv[0], C_.daemon_pidfile)) {
     case FAIL:
-      printf("FAIL\n");
+      //printf("FAIL\n");
       return -5;
     case PARENT:
-      printf("PARENT\n");
+      //printf("PARENT\n");
       return 0;
     case DAEMON:
-      printf("DAEMON\n");
+      //printf("DAEMON\n");
       break;
     }
   }
 
-  g_print("Camera:           %s\n"
-	  "Output directory: %s\n"
-	  "UPnP port:        %i\n"
-	  "Config file:      %s\n",
-	  C_.camera_name, C_.output_dir, C_.upnp_port,
-	  C_.config_file ? C_.config_file : "none");
+  log_info("main", "Camera:           %s", C_.camera_name);
+  log_info("main", "Output directory: %s", C_.output_dir);
+  log_info("main", "UPnP port:        %i", C_.upnp_port);
+  log_info("main", "Config file:      %s",
+	   C_.config_file ? C_.config_file : "none");
 
   if (! download_init()) {
     return -2;
@@ -213,7 +213,7 @@ main(gint   argc, gchar *argv[])
     g_strdup_printf("%s/.state.db", C_.output_dir);
 
   if (! jq_init(config_db)) {
-    g_printerr("Failed to initialize job queue\n");
+    log_error("main", "Failed to initialize job queue");
     g_free(config_db);
     return -4;
   }

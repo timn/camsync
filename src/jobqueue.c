@@ -110,7 +110,7 @@ jq_init(const char *db_file)
 
   char *errmsg;
   if (sqlite3_exec(G_.db, SQL_CREATE_TABLE, NULL, NULL, &errmsg) != SQLITE_OK) {
-    fprintf(stderr, "Failed to create tables: %s\n", sqlite3_errmsg(G_.db));
+    log_error("jq_init", "Failed to create tables: %s", sqlite3_errmsg(G_.db));
     sqlite3_close(G_.db);
     return false;
   }
@@ -133,20 +133,20 @@ jq_append(const char *id, const char *name, const char *url)
   const char   *tail;
 
   if ( sqlite3_prepare(G_.db, SQL_INSERT_JOB, -1, &stmt, &tail) != SQLITE_OK ) {
-    fprintf(stderr, "Failed to prepare SQL_INSERT_JOB: %s\n", sqlite3_errmsg(G_.db));
+    log_error("jq_append", "Failed to prepare SQL_INSERT_JOB: %s", sqlite3_errmsg(G_.db));
     return false;
   }
   if ( (sqlite3_bind_text(stmt, 1, id, -1, NULL) != SQLITE_OK) ||
        (sqlite3_bind_text(stmt, 2, name, -1, NULL) != SQLITE_OK) ||
        (sqlite3_bind_text(stmt, 3, url, -1, NULL) != SQLITE_OK) )
   {
-    fprintf(stderr, "Failed to bind for SQL_INSERT_JOB: %s\n", sqlite3_errmsg(G_.db));
+    log_error("jq_append", "Failed to bind for SQL_INSERT_JOB: %s", sqlite3_errmsg(G_.db));
     sqlite3_finalize(stmt);
     return false;
   }
 
   if (sqlite3_step(stmt) != SQLITE_DONE) {
-    fprintf(stderr, "Failed to execute SQL_INSERT_JOB: %s\n", sqlite3_errmsg(G_.db));
+    log_error("jq_append", "Failed to execute SQL_INSERT_JOB: %s", sqlite3_errmsg(G_.db));
     sqlite3_finalize(stmt);
     return false;
   }
@@ -175,7 +175,7 @@ jq_get_next()
 {
   sqlite3_stmt *stmt;
   if ( (sqlite3_prepare(G_.db, SQL_GET_NEXT_JOB, -1, &stmt, 0) != SQLITE_OK) || ! stmt ) {
-    fprintf(stderr, "Failed to prepare SQL_GET_NEXT_JOB: %s\n", sqlite3_errmsg(G_.db));
+    log_error("jq_get_next", "Failed to prepare SQL_GET_NEXT_JOB: %s", sqlite3_errmsg(G_.db));
     return NULL;
   }
 
@@ -190,7 +190,7 @@ jq_get_next()
     sqlite3_finalize(stmt);
     return jeq;
   } else {
-    printf("No job\n");
+    log_info("jq_get_next", "No more jobs");
   }
 
   sqlite3_finalize(stmt);
@@ -202,7 +202,7 @@ jq_has_next()
 {
   sqlite3_stmt *stmt;
   if ( (sqlite3_prepare(G_.db, SQL_GET_NEXT_JOB, -1, &stmt, 0) != SQLITE_OK) || ! stmt ) {
-    fprintf(stderr, "Failed to prepare SQL_GET_NEXT_JOB (has_next): %s\n",
+    log_error("jq_has_next", "Failed to prepare SQL_GET_NEXT_JOB (has_next): %s",
 	    sqlite3_errmsg(G_.db));
     return false;
   }
@@ -241,13 +241,13 @@ jq_is_done(const char *id)
 	sqlite3_finalize(stmt);  
 	return true;
       } else if (rv != SQLITE_DONE) { 
-	fprintf(stderr, "Failed to execute SQL_IS_JOB_DONE: %s\n", sqlite3_errmsg(G_.db));
+	log_error("jq_is_done", "Failed to execute SQL_IS_JOB_DONE: %s", sqlite3_errmsg(G_.db));
       }
     } else {
-      fprintf(stderr, "Failed to bind for SQL_IS_JOB_DONE: %s\n", sqlite3_errmsg(G_.db));
+      log_error("jq_is_done", "Failed to bind for SQL_IS_JOB_DONE: %s", sqlite3_errmsg(G_.db));
     }
   } else {
-    fprintf(stderr, "Failed to prepare SQL_IS_JOB_DONE: %s\n", sqlite3_errmsg(G_.db));
+    log_error("jq_is_done", "Failed to prepare SQL_IS_JOB_DONE: %s", sqlite3_errmsg(G_.db));
   }
   sqlite3_finalize(stmt);  
   return false;
@@ -265,13 +265,13 @@ jq_has(const char *id)
 	sqlite3_finalize(stmt);  
 	return true;
       } else if (rv != SQLITE_DONE) { 
-	fprintf(stderr, "Failed to execute SQL_HAS_JOB: %s\n", sqlite3_errmsg(G_.db));
+	log_error("jq_has", "Failed to execute SQL_HAS_JOB: %s", sqlite3_errmsg(G_.db));
       }
     } else {
-      fprintf(stderr, "Failed to bind for SQL_HAS_JOB: %s\n", sqlite3_errmsg(G_.db));
+      log_error("jq_has", "Failed to bind for SQL_HAS_JOB: %s", sqlite3_errmsg(G_.db));
     }
   } else {
-    fprintf(stderr, "Failed to prepare SQL_HAS_JOB: %s\n", sqlite3_errmsg(G_.db));
+    log_error("jq_has", "Failed to prepare SQL_HAS_JOB: %s", sqlite3_errmsg(G_.db));
   }
   sqlite3_finalize(stmt);  
   return false;
@@ -285,14 +285,14 @@ jq_remove(const char *id)
   if ( sqlite3_prepare(G_.db, SQL_REMOVE_JOB, -1, &stmt, NULL) == SQLITE_OK ) {
     if (sqlite3_bind_text(stmt, 1, id, -1, NULL) == SQLITE_OK) {
       if (sqlite3_step(stmt) != SQLITE_DONE) {
-	fprintf(stderr, "Failed to execute SQL_REMOVE_JOB: %s\n", sqlite3_errmsg(G_.db));
+	log_error("jq_remove", "Failed to execute SQL_REMOVE_JOB: %s", sqlite3_errmsg(G_.db));
       }
     } else {
-      fprintf(stderr, "Failed to bind for SQL_REMOVE_JOB: %s\n", sqlite3_errmsg(G_.db));
+      log_error("jq_remove", "Failed to bind for SQL_REMOVE_JOB: %s", sqlite3_errmsg(G_.db));
     }
     sqlite3_finalize(stmt);  
   } else {
-    fprintf(stderr, "Failed to prepare SQL_REMOVE_JOB: %s\n", sqlite3_errmsg(G_.db));
+    log_error("jq_remove", "Failed to prepare SQL_REMOVE_JOB: %s", sqlite3_errmsg(G_.db));
   }
 
 }
@@ -305,14 +305,14 @@ jq_defer(const char *id)
   if ( sqlite3_prepare(G_.db, SQL_DEFER_JOB, -1, &stmt, NULL) == SQLITE_OK ) {
     if (sqlite3_bind_text(stmt, 1, id, -1, NULL) == SQLITE_OK) {
       if (sqlite3_step(stmt) != SQLITE_DONE) {
-	fprintf(stderr, "Failed to execute SQL_DEFER_JOB: %s\n", sqlite3_errmsg(G_.db));
+	log_error("jq_defer", "Failed to execute SQL_DEFER_JOB: %s", sqlite3_errmsg(G_.db));
       }
     } else {
-      fprintf(stderr, "Failed to bind for SQL_DEFER_JOB: %s\n", sqlite3_errmsg(G_.db));
+      log_error("jq_defer", "Failed to bind for SQL_DEFER_JOB: %s", sqlite3_errmsg(G_.db));
     }
     sqlite3_finalize(stmt);  
   } else {
-    fprintf(stderr, "Failed to prepare SQL_DEFER_JOB: %s\n", sqlite3_errmsg(G_.db));
+    log_error("jq_defer", "Failed to prepare SQL_DEFER_JOB: %s", sqlite3_errmsg(G_.db));
   }
 
 }
@@ -329,13 +329,13 @@ jq_refresh(const char *id)
 	sqlite3_finalize(stmt);  
 	return (num_rows > 0);
       } else {
-	fprintf(stderr, "Failed to execute SQL_REFRESH_JOB: %s\n", sqlite3_errmsg(G_.db));
+	log_error("jq_refresh", "Failed to execute SQL_REFRESH_JOB: %s", sqlite3_errmsg(G_.db));
       }
     } else {
-      fprintf(stderr, "Failed to bind for SQL_REFRESH_JOB: %s\n", sqlite3_errmsg(G_.db));
+      log_error("jq_refresh", "Failed to bind for SQL_REFRESH_JOB: %s", sqlite3_errmsg(G_.db));
     }
   } else {
-    fprintf(stderr, "Failed to prepare SQL_REFRESH_JOB: %s\n", sqlite3_errmsg(G_.db));
+    log_error("jq_refresh", "Failed to prepare SQL_REFRESH_JOB: %s", sqlite3_errmsg(G_.db));
   }
   sqlite3_finalize(stmt);  
   return false;

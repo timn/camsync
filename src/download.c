@@ -23,6 +23,7 @@
 #include "download.h"
 #include "jobqueue.h"
 #include "config.h"
+#include "logging.h"
 
 #include <glib.h>
 #include <glib/gi18n.h>
@@ -132,7 +133,7 @@ get_url_finished (SoupSession *session, SoupMessage *msg, gpointer user_data)
 
   char *tmpfile_name, *file_name;
 
-  printf("Download of %s completed\n", data->outfile_name);
+  log_info("get_url", "Download of %s completed", data->outfile_name);
 
   G_.active_downloads -= 1;
 
@@ -145,7 +146,7 @@ get_url_finished (SoupSession *session, SoupMessage *msg, gpointer user_data)
   if (SOUP_STATUS_IS_SUCCESSFUL(msg->status_code)) {
     FILE *output_file = fopen(tmpfile_name, "w");
     if (!output_file) {
-      g_printerr ("Error trying to create file %s.\n", tmpfile_name);
+      log_error("get_url_finished", "Error trying to create file %s.", tmpfile_name);
     } else {
       fwrite (msg->response_body->data,
 	      1, msg->response_body->length,
@@ -155,7 +156,7 @@ get_url_finished (SoupSession *session, SoupMessage *msg, gpointer user_data)
 
       int rename_status = rename(tmpfile_name, file_name);
       if (rename_status != 0) {
-	g_printerr("Failed to move temporary file: %s\n", strerror(errno));
+	log_error("get_url_finished", "Failed to move temporary file: %s", strerror(errno));
       }
 
       jq_mark_done(data->id);
@@ -164,7 +165,7 @@ get_url_finished (SoupSession *session, SoupMessage *msg, gpointer user_data)
     // Remove failed files, they were probably removed from the
     // camera in the meantime. If it is a transient error we will
     // re-discover the file on the next browse operation
-    g_printerr("Failed to get %s: %s (removing)\n", data->url, msg->reason_phrase);
+    log_error("get_url_finished", "Failed to get %s: %s (removing)", data->url, msg->reason_phrase);
     jq_remove(data->id);
   }
 
@@ -202,7 +203,7 @@ download_next()
   if (G_.active_downloads < C_.conc_downloads) {
     JobQueueEntry *jqe = jq_get_next();
     if (jqe) {
-      printf("Fetching %s (%s)\n", jqe->name, jqe->url);
+      log_info("download_next", "Downloading %s (%s)", jqe->name, jqe->url);
       get_url(jqe->id, jqe->url, C_.output_dir, jqe->name);
       jqe_destroy(jqe);
     }

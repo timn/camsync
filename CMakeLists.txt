@@ -25,5 +25,5 @@ include_directories(${GLIB_INCLUDE_DIRS} ${GUPNP_INCLUDE_DIRS} ${LIBSOUP_INCLUDE
 link_libraries(${GLIB_LIBRARIES} ${GUPNP_LIBRARIES} ${LIBSOUP_LIBRARIES} ${SQLITE_LIBRARIES} ${LIBDAEMON_LIBRARIES})
 link_directories(${GLIB_LIBRARY_DIRS} ${GUPNP_LIBRARY_DIRS} ${LIBSOUP_LIBRARY_DIRS} ${SQLITE_LIBRARY_DIRS} ${LIBDAEMON_LIBRARY_DIRS})
 
-add_executable(camsync src/camsync.c src/browse.c src/download.c src/jobqueue.c src/config.c src/daemon.c)
+add_executable(camsync src/camsync.c src/browse.c src/download.c src/jobqueue.c src/config.c src/daemon.c src/logging.c)
 

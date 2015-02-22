@@ -24,6 +24,7 @@
 #include "download.h"
 #include "jobqueue.h"
 #include "config.h"
+#include "logging.h"
 
 #define CONTENT_DIR      "urn:schemas-upnp-org:service:ContentDirectory"
 
@@ -128,7 +129,7 @@ static gboolean
 rebrowse(gpointer user_data)
 {
   if (G_.browse_active) {
-    printf("WARNING: browse active\n");
+    log_warn("rebrowse", "browse active");
     return G_SOURCE_CONTINUE;
   }
 
@@ -347,7 +348,7 @@ browse_metadata_cb(GUPnPServiceProxy       *content_dir,
 
     gupnp_didl_lite_parser_parse_didl(parser, metadata, &error);
     if (error) {
-      g_warning("Failed to parse metadata: %s\n", error->message);
+      log_warn("browse_metadata_cb", "Failed to parse metadata: %s\n", error->message);
       g_error_free(error);
     }
 
@@ -374,6 +375,8 @@ browse(GUPnPServiceProxy *content_dir,
 {
   BrowseData *data;
   data = browse_data_new(content_dir, container_id, starting_index);
+
+  log_info("browse", "Browsing %s", container_id);
 
   G_.browse_active += 1;
 

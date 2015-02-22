@@ -90,7 +90,7 @@ config_init(int argc, char **argv)
   g_option_context_add_main_entries(context, config_entries, GETTEXT_PACKAGE);
 
   if (!g_option_context_parse(context, &argc, &argv, &error)) {
-    g_print(_("Could not parse options: %s\n"), error->message);
+    log_warn("config_init", _("Could not parse options: %s"), error->message);
     
     g_option_context_free(context);
     return false;
@@ -130,7 +130,7 @@ config_init(int argc, char **argv)
       }
 
     } else {
-      g_print(_("Could not read config file: %s\n"), error->message);
+      log_warn("config_init", _("Could not read config file: %s"), error->message);
     }
   }
 
