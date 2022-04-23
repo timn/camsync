@@ -27,6 +27,7 @@
 #include "daemon.h"
 #include "logging.h"
 
+#include <libgupnp/gupnp-context-manager.h>
 #include <libgupnp/gupnp-control-point.h>
 #include <libgupnp-av/gupnp-av.h>
 #include <string.h>
