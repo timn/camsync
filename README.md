@@ -25,13 +25,14 @@ Canon EOS 70D
 
 Known Working Platforms
 -----------------------
+Debian 11
 Fedora 20
 ReadyNAS Ultra 4 (RAIDiator 4.2.26, with root access enabled)
 
 
 Building
 --------
-To build camsync on Fedora do the following:
+To build camsync on Debian or Fedora do the following:
 ```
 mkdir build
 cd build
